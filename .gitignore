@@ -7,23 +7,34 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.venv
+
+# Build output
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Python
 __pycache__
 *.pyc
-ai_content_detector_backend.egg-info
-llm_server.egg-info
-.github
+*.egg-info
+
+# Uploads
+uploads/
