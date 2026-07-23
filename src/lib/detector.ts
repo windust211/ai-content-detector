@@ -29,16 +29,12 @@ export async function analyzeText(text: string, fileName: string | null = null):
   console.log(`[Detector] Overall score: ${overallScore}%`);
 
   // Derive per-paragraph scores from overall score + heuristics
-  // (avoids inconsistent per-paragraph API calls)
-  const paragraphScores = paragraphs.map((p) => {
-    const baseScore = overallScore;
+  // then normalize so the average matches the overall score
+  const rawScores = paragraphs.map((p) => {
     const len = p.trim().length;
+    if (len < 50) return overallScore * 0.6;
+    if (len < 100) return overallScore * 0.85;
 
-    // Short paragraphs get slightly adjusted scores
-    if (len < 50) return Math.round(baseScore * 0.6);
-    if (len < 100) return Math.round(baseScore * 0.85);
-
-    // Check for AI-like patterns (repetitive words, transition words)
     const words = p.split(/\s+/);
     const uniqueRatio = new Set(words.map((w) => w.toLowerCase())).size / words.length;
     const transitionWords = ['moreover', 'furthermore', 'additionally', 'consequently'];
@@ -49,7 +45,14 @@ export async function analyzeText(text: string, fileName: string | null = null):
     if (transitionCount > 1) delta += 8;
     if (words.length / (p.split(/[.!?]+/).length || 1) > 25) delta += 5;
 
-    return Math.max(0, Math.min(100, baseScore + delta));
+    return overallScore + delta;
+  });
+
+  // Normalize: adjust scores so their average equals the overall score
+  const rawAvg = rawScores.reduce((a, b) => a + b, 0) / rawScores.length;
+  const paragraphScores = rawScores.map((s) => {
+    const adjusted = Math.round(s * (overallScore / rawAvg));
+    return Math.max(0, Math.min(100, adjusted));
   });
 
   const results: ParagraphResult[] = paragraphs.map((paraText, i) => ({
