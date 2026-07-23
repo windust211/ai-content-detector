@@ -1,29 +1,140 @@
-import type { DetectionResult, ParagraphResult, HighlightSpan } from '@/types';
+import type { DetectionResult, ParagraphResult } from '@/types';
+
+// 火山方舟 DeepSeek API（Responses API 格式）
+const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/responses';
+const ARK_API_KEY = process.env.ARK_API_KEY || '';
+const ARK_MODEL = process.env.ARK_MODEL || '';
+
+interface ArkResponse {
+  output: {
+    type: string;
+    content?: { type: string; text: string }[];
+    message?: { content: string };
+  }[];
+}
 
 /**
- * Simulate AI detection analysis on the given text content.
- * In a production environment, this would call an external AI model API.
+ * Call Volcano Ark DeepSeek API to detect AI-generated text.
+ * Throws if the API is unavailable.
  */
-export function analyzeText(text: string, fileName: string | null = null): DetectionResult {
+export async function analyzeText(text: string, fileName: string | null = null): Promise<DetectionResult> {
+  const startTime = performance.now();
   const paragraphs = splitIntoParagraphs(text);
-  const results: ParagraphResult[] = paragraphs.map((paraText) =>
-    analyzeParagraph(paraText)
-  );
+  console.log(`[Detector] Analyzing text: ${text.length} chars, ${paragraphs.length} paragraphs`);
 
-  const overallScore = calculateOverallScore(results);
+  // Call DeepSeek once for overall score
+  console.log('[Detector] Calling DeepSeek API...');
+  const deepSeekResult = await callDeepSeek(text);
+  const overallScore = Math.round(deepSeekResult * 100);
+  console.log(`[Detector] Overall score: ${overallScore}%`);
+
+  // Derive per-paragraph scores from overall score + heuristics
+  // (avoids inconsistent per-paragraph API calls)
+  const paragraphScores = paragraphs.map((p) => {
+    const baseScore = overallScore;
+    const len = p.trim().length;
+
+    // Short paragraphs get slightly adjusted scores
+    if (len < 50) return Math.round(baseScore * 0.6);
+    if (len < 100) return Math.round(baseScore * 0.85);
+
+    // Check for AI-like patterns (repetitive words, transition words)
+    const words = p.split(/\s+/);
+    const uniqueRatio = new Set(words.map((w) => w.toLowerCase())).size / words.length;
+    const transitionWords = ['moreover', 'furthermore', 'additionally', 'consequently'];
+    const transitionCount = transitionWords.filter((tw) => p.toLowerCase().includes(tw)).length;
+
+    let delta = 0;
+    if (uniqueRatio < 0.4) delta += 10;
+    if (transitionCount > 1) delta += 8;
+    if (words.length / (p.split(/[.!?]+/).length || 1) > 25) delta += 5;
+
+    return Math.max(0, Math.min(100, baseScore + delta));
+  });
+
+  const results: ParagraphResult[] = paragraphs.map((paraText, i) => ({
+    text: paraText,
+    score: paragraphScores[i],
+    risk: getRiskLevel(paragraphScores[i]),
+    highlights: [],
+  }));
+
   const riskLevel = getRiskLevel(overallScore);
   const suggestions = generateSuggestions(results, overallScore);
+  const processingTime = ((performance.now() - startTime) / 1000).toFixed(2);
 
   return {
     id: generateId(),
     file_name: fileName,
     ai_score: overallScore,
     risk_level: riskLevel,
-    processing_time: parseFloat((Math.random() * 2 + 0.5).toFixed(2)),
+    processing_time: parseFloat(processingTime),
     paragraphs: results,
     suggestions,
     created_at: new Date().toISOString(),
   };
+}
+
+/**
+ * Call Volcano Ark DeepSeek API for a single text input.
+ * Returns the probability of being AI-generated (0-1).
+ */
+async function callDeepSeek(text: string): Promise<number> {
+  const input = text.slice(0, 2000);
+  console.log(`[DeepSeek] Sending request (${input.length} chars)...`);
+
+  if (!ARK_API_KEY || ARK_API_KEY === '') {
+    console.error('[DeepSeek] API key not configured');
+    throw new Error('ARK_API_KEY not configured in .env.local');
+  }
+  if (!ARK_MODEL) {
+    console.error('[DeepSeek] Model not configured');
+    throw new Error('ARK_MODEL not configured in .env.local');
+  }
+
+  const response = await fetch(ARK_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${ARK_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: ARK_MODEL,
+      stream: false,
+      input: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: `You are an AI text detection expert. Analyze the following text and determine if it is AI-generated. Return ONLY a single integer between 0 and 100, where 0 = definitely human-written, 100 = definitely AI-generated. Do not include any other text or explanation.\n\nText:\n${input}`,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  console.log(`[DeepSeek] Response status: ${response.status}`);
+
+  if (!response.ok) {
+    const error = await response.text().catch(() => 'Unknown error');
+    console.error(`[DeepSeek] Error ${response.status}:`, error);
+    throw new Error(`DeepSeek API error: ${response.status} - ${error}`);
+  }
+
+  const data: ArkResponse = await response.json();
+  // Find the assistant message output (skip reasoning blocks)
+  const messageOutput = data.output?.find(
+    (o) => o.type === 'message' && o.content?.[0]?.type === 'output_text'
+  );
+  const content = messageOutput?.content?.[0]?.text?.trim() || '50';
+  console.log(`[DeepSeek] Raw response:`, content);
+
+  const score = parseInt(content, 10);
+  const clamped = isNaN(score) ? 50 : Math.max(0, Math.min(100, score));
+  console.log(`[DeepSeek] AI score: ${clamped}%`);
+  return clamped / 100;
 }
 
 function splitIntoParagraphs(text: string): string[] {
@@ -39,109 +150,10 @@ function splitIntoParagraphs(text: string): string[] {
   return raw;
 }
 
-function analyzeParagraph(text: string): ParagraphResult {
-  const score = computeParagraphScore(text);
-  const risk = getRiskLevel(score);
-  const highlights = findHighlights(text, score);
-
-  return {
-    text,
-    score,
-    risk,
-    highlights,
-  };
-}
-
-function computeParagraphScore(text: string): number {
-  const trimmed = text.trim();
-  if (trimmed.length < 20) return Math.random() * 30;
-
-  let score = 50; // baseline
-
-  // Feature 1: Repetitive word patterns
-  const words = trimmed.split(/\s+/);
-  const uniqueRatio = new Set(words.map((w) => w.toLowerCase())).size / words.length;
-  if (uniqueRatio < 0.4) score += 20;
-  else if (uniqueRatio < 0.55) score += 10;
-  else if (uniqueRatio > 0.8) score -= 10;
-
-  // Feature 2: Transition word frequency (common in AI text)
-  const transitionWords = [
-    'moreover', 'furthermore', 'additionally', 'consequently',
-    'nevertheless', 'nonetheless', 'accordingly', 'importantly',
-    'specifically', 'particularly', 'notably', 'significantly',
-  ];
-  const transitionCount = transitionWords.filter((tw) =>
-    trimmed.toLowerCase().includes(tw)
-  ).length;
-  if (transitionCount > 3) score += 15;
-  else if (transitionCount > 1) score += 5;
-
-  // Feature 3: Average sentence length
-  const sentences = trimmed.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-  if (sentences.length > 0) {
-    const avgSentenceLength =
-      words.length / sentences.length;
-    if (avgSentenceLength > 30) score += 10;
-    else if (avgSentenceLength > 22) score += 5;
-    else if (avgSentenceLength < 12) score -= 5;
-  }
-
-  // Feature 4: Vocabulary richness (simple heuristic)
-  const longWords = words.filter((w) => w.length > 8).length;
-  const longWordRatio = longWords / words.length;
-  if (longWordRatio > 0.35) score += 10;
-  else if (longWordRatio > 0.25) score += 5;
-
-  // Add some randomness for realistic variation
-  score += (Math.random() - 0.5) * 10;
-
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
-
-function findHighlights(text: string, score: number): HighlightSpan[] {
-  const highlights: HighlightSpan[] = [];
-  const words = text.split(/\s+/);
-
-  if (score < 30) return highlights;
-
-  // Find sentences with high AI indicators
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  let globalOffset = 0;
-
-  for (const sentence of sentences) {
-    const sentenceScore = computeParagraphScore(sentence);
-    if (sentenceScore > 60) {
-      const start = text.indexOf(sentence, globalOffset);
-      if (start >= 0) {
-        const end = start + sentence.length;
-        highlights.push({
-          start,
-          end,
-          text: sentence,
-          score: sentenceScore,
-          risk: getRiskLevel(sentenceScore),
-          suggestion: getSuggestion(sentenceScore),
-        });
-        globalOffset = end;
-      }
-    }
-  }
-
-  // Limit to at most 5 highlights
-  return highlights.slice(0, 5);
-}
-
 function getRiskLevel(score: number): 'low' | 'medium' | 'high' {
   if (score >= 70) return 'high';
   if (score >= 40) return 'medium';
   return 'low';
-}
-
-function calculateOverallScore(paragraphs: ParagraphResult[]): number {
-  if (paragraphs.length === 0) return 0;
-  const total = paragraphs.reduce((sum, p) => sum + p.score, 0);
-  return Math.round(total / paragraphs.length);
 }
 
 function generateSuggestions(
@@ -177,16 +189,6 @@ function generateSuggestions(
   );
 
   return suggestions;
-}
-
-function getSuggestion(score: number): string {
-  if (score >= 70) {
-    return 'Consider rewriting this sentence in your own words.';
-  }
-  if (score >= 40) {
-    return 'Try to vary the sentence structure.';
-  }
-  return 'This appears authentic.';
 }
 
 function generateId(): string {

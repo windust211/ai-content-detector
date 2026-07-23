@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeText } from '@/lib/detector';
 
-export const runtime = 'edge';
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -30,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = analyzeText(trimmed);
+    const result = await analyzeText(trimmed);
 
     return NextResponse.json({
       code: 0,
@@ -40,7 +38,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Text detection error:', error);
     return NextResponse.json(
-      { code: 50001, message: 'Internal server error', data: null },
+      { code: 50001, message: '检测失败，请重试', data: null },
       { status: 500 }
     );
   }

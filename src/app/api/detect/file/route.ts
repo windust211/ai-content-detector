@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { analyzeText } from '@/lib/detector';
 import { parseFile } from '@/lib/parser';
 
-export const runtime = 'edge';
-
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -40,7 +38,7 @@ export async function POST(request: NextRequest) {
     const text = await parseFile(buffer, file.name);
 
     // Analyze the extracted text
-    const result = analyzeText(text, file.name);
+    const result = await analyzeText(text, file.name);
 
     return NextResponse.json({
       code: 0,
@@ -50,7 +48,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('File detection error:', error);
     return NextResponse.json(
-      { code: 50001, message: 'Internal server error', data: null },
+      { code: 50001, message: '检测失败，请重试', data: null },
       { status: 500 }
     );
   }

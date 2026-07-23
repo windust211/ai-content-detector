@@ -94,7 +94,7 @@ function ResultPage() {
                   style={{
                     backgroundColor: getRiskBadgeColor(result.risk_level),
                     fontSize: 18,
-                    padding: '8px 16px',
+                    padding: '10px 10px 30px 10px',
                     borderRadius: 8,
                   }}
                 />
