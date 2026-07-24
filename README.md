@@ -159,3 +159,5 @@ Upload a file (PDF, DOCX, TXT) for AI detection.
 - 📊 Per-paragraph AI scoring with highlights
 - 💡 Improvement suggestions
 - 🔒 Privacy-first: files are processed in-memory, never stored
+
+<!-- trigger auto deployment -->
