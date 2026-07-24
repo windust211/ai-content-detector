@@ -1,3 +1,0 @@
-name = "ai-content-detector"
-compatibility_date = "2026-07-24"
-compatibility_flags = ["nodejs_compat"]
