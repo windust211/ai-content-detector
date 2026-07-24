@@ -19,7 +19,6 @@ ai-content-detector/
 ├── next.config.ts                 # Next.js configuration
 ├── package.json                   # Dependencies
 ├── postcss.config.js              # PostCSS configuration
-├── tailwind.config.ts             # TailwindCSS configuration
 ├── tsconfig.json                  # TypeScript configuration
 ├── public/                        # Static assets
 ├── src/
@@ -41,12 +40,9 @@ ai-content-detector/
 │   │   └── parser.ts              # File parser (PDF/DOCX/TXT)
 │   ├── stores/                    # Zustand stores
 │   └── types/                     # TypeScript types
-├── wrangler.jsonc                 # Cloudflare Workers 配置（自动生成）
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml             # GitHub Actions 自动部署
-├── cloudflare/
-│   └── wrangler.toml              # Cloudflare 旧 Pages 配置（参考）
 └── README.md
 ```
 
@@ -71,13 +67,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Build (Cloudflare)
+### Build
 
 ```bash
 npm run pages:build
 ```
 
-> 注意：部署到 Cloudflare 必须使用 `pages:build`，不能用 `build`。  
+> 部署到 Cloudflare 必须使用 `pages:build`，不能用 `build`。  
 > `pages:build` 会先执行 Next.js 构建，再转换为 Cloudflare Workers 兼容格式。
 
 ### Deploy to Cloudflare
@@ -89,7 +85,7 @@ npm run pages:build
 npm run pages:deploy
 ```
 
-#### 方式二：GitHub CI/CD 自动部署（推荐）
+#### 方式二：GitHub Actions 自动部署（推荐）
 
 项目已配置 GitHub Actions（`.github/workflows/deploy.yml`），每次推送代码到 `main` 分支自动构建部署。
 

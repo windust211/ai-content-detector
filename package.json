@@ -8,9 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "preview": "next start",
     "pages:build": "npx @opennextjs/cloudflare build",
-    "pages:preview": "npx wrangler pages dev",
     "pages:deploy": "npx wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv env.d.ts"
   },

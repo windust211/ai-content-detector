@@ -1,34 +1,4 @@
 /**
- * 通用 API 响应格式
- */
-export interface ApiResponse<T = unknown> {
-  code: number;
-  message: string;
-  data: T;
-}
-
-/**
- * 通用错误响应
- */
-export interface ApiError {
-  code: number;
-  message: string;
-  data: null;
-}
-
-/**
- * 用户信息
- */
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
  * 高亮标注片段
  */
 export interface HighlightSpan {
