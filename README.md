@@ -9,7 +9,7 @@ Detect AI-generated content in academic papers. Upload your paper or paste text 
 - **UI Library**: Ant Design 6
 - **Styling**: TailwindCSS 4 + SCSS
 - **State Management**: Zustand 5
-- **Deployment**: Cloudflare Pages (via `@cloudflare/next-on-pages`)
+- **Deployment**: Cloudflare Workers (via `@opennextjs/cloudflare`)
 
 ## Project Structure
 
@@ -41,8 +41,12 @@ ai-content-detector/
 │   │   └── parser.ts              # File parser (PDF/DOCX/TXT)
 │   ├── stores/                    # Zustand stores
 │   └── types/                     # TypeScript types
+├── wrangler.jsonc                 # Cloudflare Workers 配置（自动生成）
+├── .github/
+│   └── workflows/
+│       └── deploy.yml             # GitHub Actions 自动部署
 ├── cloudflare/
-│   └── wrangler.toml              # Cloudflare deployment config
+│   └── wrangler.toml              # Cloudflare 旧 Pages 配置（参考）
 └── README.md
 ```
 
@@ -67,18 +71,41 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Build
+### Build (Cloudflare)
 
 ```bash
-npm run build
+npm run pages:build
 ```
 
+> 注意：部署到 Cloudflare 必须使用 `pages:build`，不能用 `build`。  
+> `pages:build` 会先执行 Next.js 构建，再转换为 Cloudflare Workers 兼容格式。
+
 ### Deploy to Cloudflare
+
+#### 方式一：手动部署
 
 ```bash
 npm run pages:build
 npm run pages:deploy
 ```
+
+#### 方式二：GitHub CI/CD 自动部署
+
+项目已配置 GitHub Actions，每次推送代码到 `main` 分支自动构建部署。
+
+**首次配置步骤：**
+
+1. 在 [Cloudflare Dashboard](https://dash.cloudflare.com/) 进入 **Workers & Pages**
+2. 进入项目 **ai-content-detector** → **Settings** → **Environment Variables**
+3. 添加环境变量：
+   - `ARK_API_KEY` — 火山方舟 API Key
+   - `ARK_MODEL` — 模型 ID
+4. 在 GitHub 仓库 **Settings** → **Secrets and variables** → **Actions** 中添加：
+   - `CLOUDFLARE_API_TOKEN` — Cloudflare API Token（需具有 Workers & Pages 部署权限）
+   - `ARK_API_KEY` — 火山方舟 API Key
+   - `ARK_MODEL` — 模型 ID
+
+之后每次 `git push` 到 `main` 分支，GitHub Actions 会自动构建并部署到 Cloudflare。
 
 ## API
 
