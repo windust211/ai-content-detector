@@ -89,23 +89,34 @@ npm run pages:build
 npm run pages:deploy
 ```
 
-#### 方式二：GitHub CI/CD 自动部署
+#### 方式二：GitHub CI/CD 自动部署（推荐）
 
-项目已配置 GitHub Actions，每次推送代码到 `main` 分支自动构建部署。
+项目已配置 GitHub Actions（`.github/workflows/deploy.yml`），每次推送代码到 `main` 分支自动构建部署。
 
 **首次配置步骤：**
 
-1. 在 [Cloudflare Dashboard](https://dash.cloudflare.com/) 进入 **Workers & Pages**
-2. 进入项目 **ai-content-detector** → **Settings** → **Environment Variables**
-3. 添加环境变量：
-   - `ARK_API_KEY` — 火山方舟 API Key
-   - `ARK_MODEL` — 模型 ID
-4. 在 GitHub 仓库 **Settings** → **Secrets and variables** → **Actions** 中添加：
-   - `CLOUDFLARE_API_TOKEN` — Cloudflare API Token（需具有 Workers & Pages 部署权限）
-   - `ARK_API_KEY` — 火山方舟 API Key
-   - `ARK_MODEL` — 模型 ID
+1. **创建 Cloudflare API Token**
+   - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
+   - 右上角 **My Profile** → **API Tokens** → **Create Token**
+   - 选择 **Edit Cloudflare Workers** 模板
+   - 确保权限包含 `Workers Scripts: Edit` 和 `Workers Routes: Edit`
+   - 创建后复制 Token
 
-之后每次 `git push` 到 `main` 分支，GitHub Actions 会自动构建并部署到 Cloudflare。
+2. **在 GitHub 仓库添加 Secrets**
+   - 进入 GitHub 仓库 **Settings** → **Secrets and variables** → **Actions**
+   - 添加以下 **Repository secrets**：
+
+   | Secret 名称 | 说明 |
+   |---|---|
+   | `CLOUDFLARE_API_TOKEN` | 上一步创建的 Cloudflare API Token |
+   | `ARK_API_KEY` | 火山方舟 API Key |
+   | `ARK_MODEL` | 模型 ID（如 `ep-20260723231141-bhx8p`） |
+
+3. **推送代码触发部署**
+   ```bash
+   git push origin main
+   ```
+   在 GitHub 仓库 **Actions** 标签页可以查看部署进度。
 
 ## API
 
