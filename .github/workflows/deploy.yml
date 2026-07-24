@@ -8,29 +8,21 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Build for Cloudflare
-        run: npm run pages:build
+      - run: npm run pages:build
         env:
           ARK_API_KEY: ${{ secrets.ARK_API_KEY }}
           ARK_MODEL: ${{ secrets.ARK_MODEL }}
 
-      - name: Deploy to Cloudflare Workers
-        run: npx wrangler deploy
+      - run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
